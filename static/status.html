@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>Xray Core 控制台</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- 公共样式 -->
+  <link rel="stylesheet" href="css/common.css">
+  <!-- Vue2 & Axios & Element UI -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-ui@2.15.14/lib/index.js"></script>
+  <style>
+    /* 全局及变量 */
+    :root {
+      --app-text: #fff;         /* 默认文字色，脚本会覆盖 */
+      --app-active: #FFD04B;    /* 操作主色 */
+    }
+    html, body {
+      margin: 0; padding: 0;
+      width:100%; height:100%;
+      background: transparent;
+      overflow: hidden;
+      font-family: 'Urbanist', sans-serif;
+      color: var(--app-text);
+    }
+    body {
+      position: relative;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      box-sizing: border-box;
+      padding: 20px 40px;
+    }
+
+    /* 顶部状态区 */
+    .status-header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    .status-header h1 {
+      font-size: 2.2rem;
+      margin: 0;
+      display: inline-block;
+      vertical-align: middle;
+      color: var(--app-text);
+    }
+    .status-header .el-icon-circle-check,
+    .status-header .el-icon-close {
+      font-size: 2.6rem;
+      margin-left: 12px;
+      vertical-align: middle;
+      color: var(--app-active);
+    }
+
+    /* 主体左右布局 */
+    .main-body {
+      flex: 1;
+      display: flex;
+      gap: 24px;
+    }
+    .controls, .logs {
+      background: rgba(255,255,255,0.2);
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .controls {
+      flex: 1;
+      justify-content: space-between;
+    }
+    .controls .btns {
+      text-align: center;
+    }
+    .controls .btns .el-button {
+      width: 120px;
+      margin: 0 12px;
+    }
+    .status-graphic {
+      margin: 24px 0;
+      display: flex;
+      justify-content: center;
+    }
+    .controls .last-action {
+      text-align: center;
+      font-style: italic;
+      color: var(--app-text);
+    }
+
+    .logs {
+      flex: 2;
+    }
+    .logs-header {
+      font-size: 1.1rem;
+      margin-bottom: 12px;
+      color: var(--app-text);
+    }
+    .logs-list {
+      flex: 1;
+      background: rgba(0,0,0,0.1);
+      border-radius: 8px;
+      padding: 12px;
+      color: var(--app-text);
+      font-size: 0.9rem;
+      overflow-y: auto;
+    }
+    .log-item {
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+
+    /* 底部信息 */
+    .footer {
+      text-align: center;
+      padding: 8px 0;
+      font-size: 0.8rem;
+      color: var(--app-text);
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- 顶部状态 -->
+    <div class="status-header">
+      <h1>Xray Core 状态：{{ statusLabel }}</h1>
+      <i
+        :class="['el-icon', isRunning ? 'el-icon-circle-check' : 'el-icon-close']"
+      ></i>
+    </div>
+
+    <!-- 中央两栏 -->
+    <div class="main-body">
+      <!-- 控制区 -->
+      <div class="controls">
+        <div class="btns">
+          <el-button
+            type="success"
+            :disabled="loading||isRunning"
+            @click="startXray"
+          >启动</el-button>
+          <el-button
+            type="danger"
+            :disabled="loading||!isRunning"
+            @click="stopXray"
+          >停止</el-button>
+        </div>
+
+        <!-- 图形化状态展示 -->
+        <div class="status-graphic">
+          <el-progress
+            type="circle"
+            :percentage="isRunning ? 100 : 0"
+            :stroke-width="8"
+            :status="isRunning ? 'success' : 'exception'"
+            :width="100"
+          ></el-progress>
+        </div>
+
+        <div class="last-action">
+          最后操作：{{ lastAction || '——' }}
+        </div>
+      </div>
+
+      <!-- 日志区 -->
+      <div class="logs">
+        <div class="logs-header">操作日志</div>
+        <div class="logs-list">
+          <div v-for="(log,i) in logs" :key="i" class="log-item">
+            {{ log }}
+          </div>
+          <div v-if="logs.length===0" style="color:rgba(255,255,255,0.6);">暂无日志</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部信息 -->
+    <div class="footer">
+      MirageCore · 版本 1.0.0 &middot; {{ new Date().getFullYear() }}
+    </div>
+  </div>
+
+  <script>
+  // 与父页面同样的渐变配置（包括文字色和主色）
+  const gradients = [
+        { from:5,to:6,  css:'linear-gradient(145deg,#FFEFBA 0%,#FFFFFF 100%)', text:'#333', active:'#FF8C00', logoBg:'#fff' },
+        { from:6, to:9,  css:'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)', text:'#fff', active:'#FFD04B'},
+        { from:9,to:12, css:'linear-gradient(145deg,#4facfe 0%,#00f2fe 100%)', text:'#fff', active:'#FFD04B', logoBg:'#263238' },
+        { from:12,to:17,css:'linear-gradient(145deg,#f6d365 0%,#fda085 100%)', text:'#333', active:'#E85D04', logoBg:'#fff7e6' },
+        { from:17,to:20,css:'linear-gradient(135deg,#6a11cb 0%,#ff8e53 100%)', text:'#fff', active:'#FFD04B', logoBg:'#2e294e' },
+        { from:20,to:24,css:'linear-gradient(145deg,#0f2027 0%,#203a43 100%)', text:'#fff', active:'#FFD04B', logoBg:'#1e1e2f' },
+        { from:0,to:5,   css:'linear-gradient(145deg,#0f2027 0%,#203a43 100%)', text:'#fff', active:'#FFD04B', logoBg:'#1e1e2f' }
+      ];
+  const hour = new Date().getHours();
+  const style = gradients.find(g => hour>=g.from&&hour<g.to) || gradients[0];
+
+  // 应用背景、文字色、主色
+  document.body.style.background = style.css;
+  document.documentElement.style.setProperty('--app-text', style.text);
+  document.documentElement.style.setProperty('--app-active', style.active);
+
+  new Vue({
+    el: '#app',
+    data: {
+      isRunning: false,
+      loading: false,
+      lastAction: '',
+      logs: [],
+    },
+    computed: {
+      statusLabel() {
+        return this.isRunning ? '运行中' : '已停止';
+      }
+    },
+    methods: {
+      fetchStatus() {
+        axios.get('/proxy/checkStatus')
+          .then(res => { this.isRunning = res.data.running; })
+          .catch(()=>{ this.addLog('无法获取状态'); });
+      },
+      startXray() {
+        this.loading = true;
+        axios.get('/proxy/start')
+          .then(res => {
+            if (res.data.success) {
+                this.isRunning = true;
+                this.$message.success("启动成功！");
+                this.addLog('启动成功');
+            } else {
+                this.$message.error("停止失败！");
+                this.addLog('启动失败：') + res.data.err;
+            }
+          })
+          .catch(() => {
+            this.addLog('启动失败');
+          })
+          .finally(() => {
+            this.lastAction = `启动 @ ${new Date().toLocaleTimeString()}`;
+            this.loading = false;
+          });
+      },
+      stopXray() {
+        this.loading = true;
+        axios.get('/proxy/stop')
+          .then(res => {
+            if (res.data.success) {
+                this.isRunning = false;
+                this.$message.success("停止成功！");
+                this.addLog('停止成功');
+            } else {
+                this.$message.error("停止失败！");
+                this.addLog('停止失败：') + res.data.err;
+            }
+          })
+          .catch(() => {
+            this.addLog('停止失败');
+          })
+          .finally(() => {
+            this.lastAction = `停止 @ ${new Date().toLocaleTimeString()}`;
+            this.loading = false;
+          });
+      },
+      addLog(msg) {
+        const ts = new Date().toLocaleTimeString();
+        this.logs.unshift(`${ts} - ${msg}`);
+        if (this.logs.length > 50) this.logs.pop();
+      }
+    },
+    mounted() {
+      this.fetchStatus();
+    }
+  });
+  </script>
+</body>
+</html>

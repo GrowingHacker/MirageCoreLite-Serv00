@@ -1,0 +1,42 @@
+/* common.css：共享部分 —— 字体、Element UI 主题、CSS 变量、半透明卡片、状态样式 */
+@import url("https://fonts.googleapis.com/css2?family=Urbanist:wght@500;700&family=Noto+Serif+SC:wght@500;700&display=swap");
+@import url("https://cdn.jsdelivr.net/npm/element-ui@2.15.14/lib/theme-chalk/index.css");
+
+/* 侧边栏和卡片都用到的高亮色 */
+:root {
+  --sidebar-active: #FFD04B;
+}
+
+/* 子页面半透明卡片样式 */
+.panel-card {
+  width: 100%; max-width: 460px;
+  background: rgba(255,255,255,0.85);
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+  overflow: hidden;
+}
+.panel-card .el-card__header {
+  text-align: center;
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: var(--sidebar-active);
+  padding-bottom: 0;
+}
+.panel-body {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.status-text {
+  font-size: 1.3rem;
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+.status-running { color: #67C23A; }
+.status-stopped { color: #F56C6C; }
+.btn-group {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 12px;
+}

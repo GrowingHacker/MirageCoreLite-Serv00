@@ -1,0 +1,44 @@
+{
+    "log": {
+      "loglevel": "info",
+      "access": "./log/access.log",
+      "error": "./log/error.log"
+    },
+    "inbounds": [
+      {
+        "port": 8080,
+        "listen": "127.0.0.1",
+        "protocol": "vmess",
+        "settings": {
+          "clients": [
+            {
+              "id": "5b7a1f37-02e6-4eab-8f52-7d8be39bece0",
+              "alterId": 0,
+              "security": "auto"
+            }
+          ]
+        },
+        "streamSettings": {
+          "network": "ws",
+          "wsSettings": {
+            "path": "/"
+          }
+        }
+      }
+    ],
+    "outbounds": [
+      {
+        "protocol": "freedom",
+        "settings": {}
+      }
+    ],
+    "dns": {
+      "servers": [
+        "1.1.1.1",
+        "1.0.0.1",
+        "8.8.8.8",
+        "8.8.4.4"
+      ]
+    }
+  }
+  

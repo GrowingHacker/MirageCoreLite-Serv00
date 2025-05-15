@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>登录</title>
+  <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@500;700&display=swap" rel="stylesheet">
+  <!-- ElementUI -->
+  <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+  <!-- 引入 axios -->
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+    }
+    #app {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #2575fc 0%, #6a11cb 30%, #845EC2 60%, #D65DB1 80%, #FF6F91 100%);
+      font-family: 'Urbanist', sans-serif;
+      color: #fff;
+      overflow: hidden;
+      padding: 0 10vw;
+      box-sizing: border-box;
+    }
+
+    .welcome-panel {
+      flex: 1;
+      max-width: 50%;
+      text-align: left;
+      padding-right: 120px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      transform: translateY(-30px); /* 往上抬 */
+    }
+
+    .welcome-text, .sub-text {
+      display: block;
+      font-family: 'Baloo 2', cursive;
+      font-weight: 700;
+      background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      clip-path: inset(0 100% 0 0);
+      opacity: 0;
+      transition: clip-path 1.2s ease-out, opacity 0.5s ease-out;
+    }
+
+    .welcome-text {
+      font-size: 5rem;
+      line-height: 1.2;
+    }
+
+    .sub-text {
+      font-size: 2.5rem;
+      font-weight: 600;
+      margin-top: 2.5rem;
+      line-height: 1.4;
+      transition: clip-path 0.8s ease-out, opacity 0.5s ease-out;
+    }
+
+    .login-card {
+      flex: 1;
+      max-width: 400px;
+      padding: 3rem;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 10px 50px rgba(0, 0, 0, 0.2);
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      transform: translateY(20px);
+      animation: fadeInUp 0.6s ease-out forwards;
+    }
+
+    .card-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .login-header {
+      font-size: 2.2rem;
+      font-weight: 700;
+      color: #2575fc;
+      margin: 0;
+    }
+
+    .el-form-item {
+      margin-bottom: 1.5rem;
+    }
+
+    .el-input__inner {
+      font-size: 1.2rem;
+      height: 50px;
+      border-radius: 12px;
+      background-color: #fff;
+      color: #333;
+    }
+
+    /* 登录按钮样式 */
+    .login-button {
+      margin-top: 2.5rem;  /* 提高按钮上方的间距 */
+      font-weight: 600;
+      height: 4rem; /* 增加按钮高度 */
+      line-height: 0rem; /* 调整行高 */
+      background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+      border: none;
+      border-radius: 25px;
+      color: white;
+      font-size: 1.5rem; /* 增加字体大小 */
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      text-align: center; /* 确保文字水平居中 */
+    }
+
+    .login-button:hover {
+      background: linear-gradient(135deg, #2575fc 0%, #6a11cb 100%);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+      transform: translateY(-3px);
+    }
+
+    .login-button:active {
+      background: linear-gradient(135deg, #2575fc 0%, #6a11cb 100%);
+      transform: translateY(2px);
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 768px) {
+      #app {
+        flex-direction: column;
+        padding: 2rem;
+      }
+      .welcome-panel {
+        max-width: 100%;
+        padding-right: 0;
+        margin-bottom: 3rem;
+        text-align: center;
+        transform: none;
+      }
+      .login-card {
+        width: 100%;
+        max-width: 400px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="welcome-panel">
+      <h1 class="welcome-text" id="welcomeText">Welcome to<br>MirageCore</h1>
+      <p class="sub-text" id="subText">Please login to continue</p>
+    </div>
+    <el-card class="login-card">
+      <div class="card-header">
+        <h2 class="login-header">用户登录</h2>
+      </div>
+      <el-form ref="loginFormRef" :model="loginForm" :rules="rules" label-width="0">
+        <el-form-item prop="username">
+          <el-input v-model="loginForm.username" placeholder="用户名" prefix-icon="el-icon-user"></el-input>
+        </el-form-item>
+        <el-form-item prop="password">
+          <el-input v-model="loginForm.password" type="password" placeholder="密码" prefix-icon="el-icon-lock" @keydown.native.enter="handleLogin"></el-input>
+        </el-form-item>
+        <el-form-item>
+          <el-checkbox v-model="loginForm.remember">记住密码</el-checkbox>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" class="login-button" @click="handleLogin" :loading="loading" style="width:100%;">登录</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+  </div>
+
+  <!-- Vue + ElementUI -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+  <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+  <script>
+    new Vue({
+      el: '#app',
+      data: {
+        loginForm: { username: '', password: '', remember: false },
+        loading: false,
+        rules: {
+          username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
+          password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
+        }
+      },
+
+      beforeCreate() {
+         //避免session过期iframe套娃
+         if (window.top != window.self) {
+          window.top.location.href = "/static/login.html"
+        }
+      },
+
+      mounted() {
+        // 页面加载时检查是否有记住密码的设置
+        if (localStorage.getItem('remember') === 'true') {
+          this.loginForm.username = localStorage.getItem('username');
+          this.loginForm.password = localStorage.getItem('password');
+          this.loginForm.remember = true;
+        }
+        // 在 mounted 钩子中，使用 JavaScript 动态修改输入框的文字左边间距
+        this.adjustInputPadding();
+        this.startReveal('welcomeText', 100);
+        this.startReveal('subText', 500);
+      },
+      methods: {
+        // 调整输入框文字的左边间距
+        adjustInputPadding() {
+          const inputs = document.querySelectorAll('.el-input__inner');
+          inputs.forEach(input => {
+            input.style.paddingLeft = '40px'; // 调整左边间距
+          });
+        },
+        startReveal(id, delay) {
+          setTimeout(() => {
+            const el = document.getElementById(id);
+            el.style.clipPath = 'inset(0 0 0 0)';
+            el.style.opacity = '1';
+          }, delay);
+        },
+        handleLogin() {
+          this.$refs.loginFormRef.validate(valid => {
+            if (valid) {
+              this.loading = true;
+              // 使用 axios 发送登录请求
+              axios.post('/user/login', {
+                username: this.loginForm.username,
+                password: this.loginForm.password
+              })
+              .then(response => {
+                this.loading = false;
+                if (response.data.success) {
+                  if (this.loginForm.remember) {
+                    localStorage.setItem('remember', true);
+                    localStorage.setItem('username', this.loginForm.username);
+                    localStorage.setItem('password', this.loginForm.password);
+                  } else {
+                    localStorage.removeItem('remember');
+                    localStorage.removeItem('username');
+                    localStorage.removeItem('password');
+                  }
+                  this.$message({
+                    message:'登录成功!',
+                    type: 'success',
+                    duration: 1500,
+                    onClose: () => {
+                      location.href = "/static/index.html"
+                    }
+                  });
+                } else {
+                  this.$message.error('登录失败, 请检查用户名或密码!');
+                }
+              })
+              .catch(error => {
+                this.loading = false;
+                if(error.status == 401) {
+                  this.$message.error('登录失败, 请检查用户名或密码!');
+                }else{
+                  console.log('登录请求失败!'+ error)
+                  this.$message.error('登录请求失败!');
+                }
+              });
+            }
+          });
+        }
+      }
+    });
+  </script>
+</body>
+</html>

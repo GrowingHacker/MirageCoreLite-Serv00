@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Xray 配置管理</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Vue2、Element UI、Axios、QRCode.js -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-ui@2.15.14/lib/index.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/element-ui@2.15.14/lib/theme-chalk/index.css" />
+  <link rel="stylesheet" href="css/common.css" />
+  <style>
+    :root {
+      --app-text: #fff;
+      --app-active: #FFD04B;
+      --table-bg-dark: rgba(0, 0, 0, 0.25);
+      --table-bg-light: rgba(255, 255, 255, 0.1);
+    }
+    html, body {
+      margin: 0; padding: 0;
+      width: 100%; height: 100%;
+      background: transparent;
+      overflow: hidden;
+      font-family: 'Urbanist', sans-serif;
+      color: var(--app-text);
+    }
+    .container {
+      box-sizing: border-box;
+      height: 100%;
+      padding: 24px;
+      overflow-y: auto;
+    }
+    .header {
+      display: flex; justify-content: space-between;
+      align-items: center; margin-bottom: 24px;
+    }
+    h2 {
+      font-size: 1.6rem; color: var(--app-active);
+    }
+    .add-btn-container {
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: flex-start;
+    }
+    .add-btn {
+      background: var(--app-active);
+      color: #222;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.3s ease;
+    }
+    .add-btn:hover { opacity: 0.9; }
+    .el-table {
+      background: transparent;
+    }
+    .el-table th,
+    .el-table td {
+      color: var(--app-text) !important;
+      font-size: 20px;
+    }
+    .el-table th {
+      background: rgba(0, 0, 0, 0.4) !important;
+      border-bottom: 1px solid rgba(255,255,255,0.2) !important;
+      font-weight: 600;
+    }
+    .el-table .el-table__body-wrapper tr:nth-child(odd) td {
+      background: var(--table-bg-dark) !important;
+    }
+    .el-table .el-table__body-wrapper tr:nth-child(even) td {
+      background: var(--table-bg-light) !important;
+    }
+    .el-table td {
+      border-bottom: 1px solid rgba(255,255,255,0.1) !important;
+    }
+    .el-button {
+      color: var(--app-text) !important;
+    }
+    .el-button--primary {
+      background: var(--app-active) !important;
+    }
+    .el-button--danger {
+      background: rgba(255, 0, 0, 0.7) !important;
+    }
+    .loading, .empty {
+      text-align: center;
+      margin-top: 40px;
+      color: rgba(255,255,255,0.6);
+      font-size: 1.2rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="container">
+    <div class="header">
+      <h2>Xray 配置列表</h2>
+    </div>
+
+    <div class="add-btn-container">
+      <el-button
+        class="add-btn"
+        type="primary"
+        icon="el-icon-plus"
+        @click="goAdd"
+      >
+        新增节点
+      </el-button>
+    </div>
+
+    <div v-if="loading" class="loading">加载中...</div>
+
+    <el-table
+      v-if="!loading && list.length"
+      :data="list"
+      stripe
+      border
+      style="width: 100%; background: transparent;"
+    >
+      <el-table-column type="index" label="#" width="auto"></el-table-column>
+      <el-table-column prop="Remark" label="备注" width="400"></el-table-column>
+      <el-table-column prop="Protocol" label="协议" width="auto"></el-table-column>
+      <el-table-column prop="Port" label="端口" width="auto"></el-table-column>
+      <el-table-column prop="Transport" label="传输" width="auto"></el-table-column>
+      <el-table-column prop="TLS" label="TLS" width="auto"></el-table-column>
+
+      <el-table-column label="查看" width="auto" align="center">
+        <template slot-scope="scope">
+          <el-button
+            type="info"
+            icon="el-icon-view"
+            circle
+            style="font-size: 24px;"
+            @click="view(scope.row)"
+          ></el-button>
+        </template>
+      </el-table-column>
+
+      <el-table-column label="编辑" width="auto" align="center">
+        <template slot-scope="scope">
+          <el-button
+            type="primary"
+            icon="el-icon-edit"
+            circle
+            style="font-size: 24px;"
+            @click="edit(scope.row.Port)"
+          ></el-button>
+        </template>
+      </el-table-column>
+
+      <el-table-column label="删除" width="auto" align="center">
+        <template slot-scope="scope">
+          <el-button
+            type="danger"
+            icon="el-icon-delete"
+            circle
+            style="font-size: 24px;"
+            @click="remove(scope.row.Port)"
+          ></el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <div v-if="!loading && list.length === 0" class="empty">
+      暂无节点，点击“新增节点”进行配置。
+    </div>
+
+    <!-- 查看 & 复制弹窗 -->
+    <el-dialog
+      title="节点详情"
+      :visible.sync="qrVisible"
+      width="340px"
+      @close="exportLink=''; qrDataUrl='';"
+    >
+      <div style="text-align:center">
+        <img
+          :src="qrDataUrl"
+          alt="二维码"
+          style="width:240px;height:240px;margin-bottom:16px;"
+        />
+        <el-input
+          v-model="exportLink"
+          readonly
+          style="width:100%;"
+        ></el-input>
+        <el-button
+          type="primary"
+          icon="el-icon-document-copy"
+          style="margin-top:12px;"
+          @click="copyLink"
+        >复制链接</el-button>
+      </div>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="qrVisible = false">关闭</el-button>
+      </span>
+    </el-dialog>
+  </div>
+
+  <script>
+    const gradients = [
+      { from:5,to:6,  css:'linear-gradient(145deg,#FFEFBA 0%,#FFFFFF 100%)', text:'#333', active:'#FF8C00' },
+      { from:6,to:9,  css:'linear-gradient(135deg,#11998e 0%,#38ef7d 100%)', text:'#fff', active:'#FFD04B' },
+      { from:9,to:12, css:'linear-gradient(145deg,#4facfe 0%,#00f2fe 100%)', text:'#fff', active:'#FFD04B' },
+      { from:12,to:17,css:'linear-gradient(145deg,#f6d365 0%,#fda085 100%)', text:'#333', active:'#E85D04' },
+      { from:17,to:20,css:'linear-gradient(135deg,#6a11cb 0%,#ff8e53 100%)', text:'#fff', active:'#FFD04B' },
+      { from:20,to:24,css:'linear-gradient(145deg,#0f2027 0%,#203a43 100%)', text:'#fff', active:'#FFD04B' },
+      { from:0,to:5,   css:'linear-gradient(145deg,#0f2027 0%,#203a43 100%)', text:'#fff', active:'#FFD04B' }
+    ];
+    const h = new Date().getHours();
+    const style = gradients.find(g => h >= g.from && h < g.to) || gradients[0];
+    document.body.style.background = style.css;
+    document.documentElement.style.setProperty('--app-text', style.text);
+    document.documentElement.style.setProperty('--app-active', style.active);
+
+    new Vue({
+      el: '#app',
+      data() {
+        return {
+          list: [],
+          loading: false,
+          qrVisible: false,
+          exportLink: '',
+          qrDataUrl: ''
+        };
+      },
+      mounted() {
+        this.fetch();
+      },
+      methods: {
+        fetch() {
+          this.loading = true;
+          axios.get('/proxy/select')
+            .then(res => {
+              this.list = res.data.list || [];
+            })
+            .catch(() => {
+              this.list = [];
+            })
+            .finally(() => {
+              this.loading = false;
+            });
+        },
+        goAdd() {
+          parent.vue.iframeUrl = 'create.html';
+        },
+        view(node) {
+          // 构造导入链接
+          let uri = '';
+          if (node.Protocol === 'vmess') {
+            const obj = {
+              v: "2",
+              ps: node.Remark,
+              add: node.ServerAddr || node.Domain || '127.0.0.1',
+              port: node.Port,
+              id: node.UUID,
+              aid: node.AlterId,
+              net: node.Transport,
+              type: "none",
+              host: node.SNI || "",
+              path: node.WSPath || "",
+              tls: ['tls','xtls'].includes(node.Security) ? 'tls' : ''
+            };
+            uri = 'vmess://' + btoa(JSON.stringify(obj));
+          } else if (node.Protocol === 'vless') {
+            const host = node.ServerAddr || node.Domain || '127.0.0.1';
+            const params = new URLSearchParams({
+              encryption: 'none',
+              security: node.Security || '',
+              type: node.Transport,
+              path: node.WSPath || '',
+              host: node.SNI || '',
+              alpn: node.Alpn || ''
+            });
+            uri = `vless://${node.UUID}@${host}:${node.Port}?${params.toString()}#${encodeURIComponent(node.Remark)}`;
+          }
+          this.exportLink = uri;
+          // 生成二维码
+          QRCode.toDataURL(uri, { width: 256, margin: 1 })
+            .then(url => {
+              this.qrDataUrl = url;
+              this.qrVisible = true;
+            })
+            .catch(err => {
+              this.$message.error('二维码生成失败：' + err);
+            });
+        },
+        copyLink() {
+          if (!this.exportLink) return;
+          navigator.clipboard.writeText(this.exportLink)
+            .then(() => {
+              this.$message.success('链接已复制');
+            })
+            .catch(() => {
+              this.$message.error('复制失败');
+            });
+        },
+        edit(port) {
+          parent.vue.iframeUrl = 'create.html?Port=' + encodeURIComponent(port);
+        },
+        remove(port) {
+          this.$confirm(`确定删除端口 ${port}？`, '提示', { type: 'warning' })
+            .then(() => axios.delete(`/proxy/deleteConfig/${port}`))
+            .then(res => {
+              if (res.data.success) {
+                this.$message({
+                  type: 'success',
+                  message: '删除成功',
+                  duration: 1000,
+                  onClose: this.fetch
+                });
+              } else {
+                this.$message.error('删除失败');
+              }
+            })
+            .catch(() => {});
+        }
+      }
+    });
+  </script>
+</body>
+</html>

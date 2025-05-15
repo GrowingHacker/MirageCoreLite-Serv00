@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>新增 Xray 节点</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Vue2 / Element UI / Axios -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-ui@2.15.14/lib/index.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/element-ui@2.15.14/lib/theme-chalk/index.css" rel="stylesheet"/>
+  <style>
+    :root {
+      --app-text: #fff;
+      --app-active: #FFD04B;
+      --table-bg-dark: rgba(0,0,0,0.25);
+      --table-bg-light: rgba(255,255,255,0.1);
+    }
+    html, body {
+      margin:0; padding:0;
+      width:100%; height:100%;
+      background:transparent;
+      font-family:'Urbanist',sans-serif;
+      color:var(--app-text);
+      overflow:hidden;
+    }
+    #app {
+      height:100%; padding:24px;
+      box-sizing:border-box; overflow:auto;
+      background:transparent;
+    }
+    .el-card {
+      background:rgba(255,255,255,0.95);
+      border-radius:12px;
+      box-shadow:0 10px 30px rgba(0,0,0,0.1);
+    }
+    .card-header {
+      font-size:1.5rem;
+      color:var(--app-active);
+      text-align:center;
+      margin-bottom:16px;
+    }
+    .section-title {
+      margin:24px 0 12px;
+      font-weight:600;
+      color:#333;
+      border-bottom:2px solid var(--app-active);
+      padding-bottom:4px;
+    }
+    .el-form-item__label { color:#555; font-weight:600; }
+    .el-input__inner,
+    .el-select .el-input__inner,
+    .el-input-number .el-input__inner {
+      background:#2a2a2a!important;
+      color:#fff!important;
+      border:none!important;
+      border-radius:6px!important;
+    }
+    .submit-area { text-align:center; margin-top:24px; }
+    .switch-col .el-form-item__content { display:flex; align-items:center; }
+    .small-input { width:150px!important; }
+    .submit-area .el-button { width:140px; height:40px; font-size:1rem; font-weight:600; }
+    .submit-area .el-button + .el-button { margin-left:16px; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <el-card class="form-container">
+      <div class="card-header">{{ pageTitle }}</div>
+      <el-form :model="form" label-width="120px">
+        <!-- 基本信息 -->
+        <div class="section-title">基本信息</div>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="备注">
+              <el-input v-model="form.Remark" placeholder="可选"></el-input>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="协议">
+              <el-select v-model="form.Protocol">
+                <el-option label="VLESS" value="vless"></el-option>
+                <el-option label="VMess" value="vmess"></el-option>
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="UUID">
+              <el-input v-model="form.UUID" readonly></el-input>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="端口">
+              <el-input-number v-model.number="form.Port" :min="1" :max="65535" class="small-input"/>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="传输协议">
+              <el-select v-model="form.Transport">
+                <el-option label="TCP" value="tcp"></el-option>
+                <el-option label="WebSocket" value="ws"></el-option>
+                <el-option label="gRPC" value="grpc"></el-option>
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <!-- VLESS 选项 -->
+        <template v-if="form.Protocol==='vless'">
+          <div class="section-title">VLESS 选项</div>
+          <el-row :gutter="16">
+            <el-col :span="8" class="switch-col">
+              <el-form-item label="Reality">
+                <el-switch v-model="form.Reality" @change="onToggle('Reality')"/>
+              </el-form-item>
+            </el-col>
+            <el-col :span="8" class="switch-col">
+              <el-form-item label="TLS">
+                <el-switch v-model="form.TLS" @change="onToggle('TLS')"/>
+              </el-form-item>
+            </el-col>
+            <el-col :span="8" class="switch-col">
+              <el-form-item label="XTLS">
+                <el-switch v-model="form.XTLS" @change="onToggle('XTLS')"/>
+              </el-form-item>
+            </el-col>
+          </el-row>
+
+          <!-- Reality 参数折叠 -->
+          <el-collapse v-if="form.Reality" accordion v-model="activeReal">
+            <el-collapse-item name="real">
+              <template slot="title">
+                <span style="color:var(--app-active);">
+                  {{ activeReal==='real' ? '收起 Reality 参数' : '展开 Reality 参数' }}
+                </span>
+              </template>
+              <el-row :gutter="16">
+                <el-col :span="6">
+                  <el-form-item label="show">
+                    <el-switch v-model="form.Show"/>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="6">
+                  <el-form-item label="xver">
+                    <el-input-number v-model.number="form.Xver" :min="0" class="small-input"/>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="目标网站">
+                    <el-input v-model="form.ServerAddr" placeholder="www.icloud.com:443"/>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="私钥">
+                    <el-input v-model="form.PrivateKey"/>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="公钥">
+                    <el-input v-model="form.PublicKey"/>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="Short IDs">
+                    <el-input v-model="form.ShortIds"/>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="MinVersion">
+                    <el-select v-model="form.MinVersion">
+                      <el-option label="1.2" value="1.2"/>
+                      <el-option label="1.3" value="1.3"/>
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="MaxVersion">
+                    <el-select v-model="form.MaxVersion">
+                      <el-option label="1.2" value="1.2"/>
+                      <el-option label="1.3" value="1.3"/>
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="ALPN">
+                    <el-input v-model="form.Alpn" placeholder="逗号分隔"/>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="24">
+                  <el-form-item label="Sniffing">
+                    <el-switch v-model="form.Sniffing"/>
+                    <el-checkbox-group v-model="form.SniffingOpts" style="margin-left:16px;">
+                      <el-checkbox label="http"/>
+                      <el-checkbox label="tls"/>
+                      <el-checkbox label="quic"/>
+                    </el-checkbox-group>
+                  </el-form-item>
+                </el-col>
+              </el-row>
+            </el-collapse-item>
+          </el-collapse>
+
+          <!-- TLS/XTLS 参数折叠 -->
+          <el-collapse v-if="form.TLS || form.XTLS" accordion v-model="activeTls">
+            <el-collapse-item name="tls">
+              <template slot="title">
+                <span style="color:var(--app-active);">
+                  {{ activeTls==='tls'
+                      ? (form.XTLS ? '收起 XTLS 参数' : '收起 TLS 参数')
+                      : (form.XTLS ? '展开 XTLS 参数' : '展开 TLS 参数')
+                  }}
+                </span>
+              </template>
+              <el-row :gutter="16">
+                <el-col :span="6">
+                  <el-form-item label="minVersion">
+                    <el-select v-model="form.MinVersion">
+                      <el-option label="1.2" value="1.2"/>
+                      <el-option label="1.3" value="1.3"/>
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="6">
+                  <el-form-item label="maxVersion">
+                    <el-select v-model="form.MaxVersion">
+                      <el-option label="1.2" value="1.2"/>
+                      <el-option label="1.3" value="1.3"/>
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="加密套件">
+                    <el-select v-model="form.Cipher">
+                      <el-option label="auto" value="auto"/>
+                      <el-option label="aes-128-gcm" value="aes-128-gcm"/>
+                      <el-option label="chacha20-poly1305" value="chacha20-poly1305"/>
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="域名">
+                    <el-input v-model="form.Domain"/>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="ALPN">
+                    <el-input v-model="form.Alpn" placeholder="逗号分隔"/>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="证书路径">
+                    <el-input v-model="form.CertPath"/>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="密钥路径">
+                    <el-input v-model="form.KeyPath"/>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                  <el-form-item label="自动更新(秒)">
+                    <el-input-number v-model.number="form.Renew" :min="0" class="small-input"/>
+                  </el-form-item>
+                </el-col>
+                <el-col :span="24">
+                  <el-form-item label="Sniffing">
+                    <el-switch v-model="form.Sniffing"/>
+                    <el-checkbox-group v-model="form.SniffingOpts" style="margin-left:16px;">
+                      <el-checkbox label="http"/>
+                      <el-checkbox label="tls"/>
+                      <el-checkbox label="quic"/>
+                    </el-checkbox-group>
+                  </el-form-item>
+                </el-col>
+              </el-row>
+            </el-collapse-item>
+          </el-collapse>
+        </template>
+
+        <!-- VMess 选项 -->
+        <template v-if="form.Protocol==='vmess'">
+          <div class="section-title">VMess 选项</div>
+          <el-row :gutter="16">
+            <el-col :span="8">
+              <el-form-item label="alterId">
+                <el-input-number v-model.number="form.AlterId" :min="0" class="small-input"/>
+              </el-form-item>
+            </el-col>
+            <el-col :span="8">
+              <el-form-item label="加密方式">
+                <el-select v-model="form.CipherVM">
+                  <el-option label="auto" value="auto"/>
+                  <el-option label="aes-128-gcm" value="aes-128-gcm"/>
+                  <el-option label="chacha20-poly1305" value="chacha20-poly1305"/>
+                </el-select>
+              </el-form-item>
+            </el-col>
+            <el-col :span="8" class="switch-col">
+              <el-form-item label="启用 TLS">
+                <el-switch v-model="form.TLSVM"/>
+              </el-form-item>
+            </el-col>
+            <el-col v-if="form.TLSVM" :span="12">
+              <el-form-item label="域名">
+                <el-input v-model="form.Domain"/>
+              </el-form-item>
+            </el-col>
+            <el-col v-if="form.TLSVM" :span="12">
+              <el-form-item label="证书路径">
+                <el-input v-model="form.CertPath"/>
+              </el-form-item>
+            </el-col>
+            <el-col :span="8">
+              <el-form-item label="WS 路径">
+                <el-input v-model="form.WSPath"/>
+              </el-form-item>
+            </el-col>
+            <el-col :span="8">
+              <el-form-item label="Fallback">
+                <el-input v-model="form.Fallback"/>
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </template>
+
+        <!-- 确认 & 取消 按钮 -->
+        <div class="submit-area">
+          <el-button type="success" icon="el-icon-check" @click="submit">{{ buttonText }}</el-button>
+          <el-button type="danger" plain icon="el-icon-close" @click="cancel">取消</el-button>
+        </div>
+      </el-form>
+    </el-card>
+  </div>
+
+  <script>
+    // 动态渐变 & 配色
+    const gradients = [
+      { from: 5,  to: 6,  css: 'linear-gradient(145deg,#FFEFBA 0%,#FFFFFF 100%)', text: '#333', active: '#FF8C00' },
+      { from: 6,  to: 9,  css: 'linear-gradient(135deg,#11998e 0%,#38ef7d 100%)', text: '#fff', active: '#FFD04B' },
+      { from: 9,  to: 12, css: 'linear-gradient(145deg,#4facfe 0%,#00f2fe 100%)', text: '#fff', active: '#FFD04B' },
+      { from: 12, to: 17, css: 'linear-gradient(145deg,#f6d365 0%,#fda085 100%)', text: '#333', active: '#E85D04' },
+      { from: 17, to: 20, css: 'linear-gradient(135deg,#6a11cb 0%,#ff8e53 100%)', text: '#fff', active: '#FFD04B' },
+      { from: 20, to: 24, css: 'linear-gradient(145deg,#0f2027 0%,#203a43 100%)', text: '#fff', active: '#FFD04B' },
+      { from: 0,  to: 5,  css: 'linear-gradient(145deg,#0f2027 0%,#203a43 100%)', text: '#fff', active: '#FFD04B' }
+    ];
+    const h = new Date().getHours();
+    let s = gradients.find(g => h >= g.from && h < g.to) || gradients[0];
+    document.body.style.background = s.css;
+    document.documentElement.style.setProperty('--app-text', s.text);
+    document.documentElement.style.setProperty('--app-active', s.active);
+
+    new Vue({
+      el: '#app',
+      data() {
+        const params = new URLSearchParams(window.location.search);
+        const port = params.get('Port');
+        return {
+          isEdit: !!port,
+          nodePort: port,
+          pageTitle: port ? '编辑 Xray 节点' : '新增 Xray 节点',
+          buttonText: port ? '确认修改' : '确认新增',
+          activeReal: '',
+          activeTls: '',
+          form: {
+            Remark: '', Protocol: 'vless', UUID: '', Port: 443, Transport: 'tcp',
+            Encryption: '', Security: '',
+            Reality: false, TLS: false, XTLS: false,
+            Show: false, Xver: 0,
+            ServerAddr: '', PrivateKey: '', PublicKey: '', ShortIds: '',
+            MinVersion: '1.2', MaxVersion: '1.3', Cipher: 'auto', Alpn: '',
+            Domain: '', CertPath: '', KeyPath: '', Renew: 3600,
+            Sniffing: false, SniffingOpts: [],
+            AlterId: 0, CipherVM: 'auto', TLSVM: false, WSPath: '/', Fallback: '/'
+          }
+        };
+      },
+      mounted() {
+        document.title = this.pageTitle;
+        if (!this.isEdit) {
+          this.form.UUID = crypto.randomUUID
+            ? crypto.randomUUID()
+            : ([1e7]+-1e3+-4e3+-8e3+-1e11)
+              .replace(/[018]/g, c =>
+                (parseInt(c) ^ crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (parseInt(c)/4))).toString(16)
+              );
+        } else {
+          axios.get(`/proxy/getByPort/${this.nodePort}`)
+            .then(res => {
+              Object.assign(this.form, res.data.list);
+              console.log("编辑节点数据：");
+              console.log(res.data);
+              switch (res.data.list.Security) {
+                case 'tls':
+                  this.form.TLS = true;
+                  this.form.TLSVM = true;
+                  this.activeTls = 'tls';
+                  break;
+                case 'Reality':
+                  this.form.Reality = true;
+                  this.activeReal = 'real';
+                  break;
+                case 'xtls':
+                  this.form.XTLS = true;
+                  this.activeTls = 'tls';
+                  break;
+              }
+            })
+            .catch(err => console.error('拉取节点数据失败', err));
+        }
+      },
+      methods: {
+        onToggle(key) {
+          // 先清除其它协议开关
+          if (key === 'Reality' && this.form.Reality) {
+            this.form.TLS = false; this.form.XTLS = false;
+          }
+          if (key === 'TLS' && this.form.TLS) {
+            this.form.Reality = false; this.form.XTLS = false;
+          }
+          if (key === 'XTLS' && this.form.XTLS) {
+            this.form.Reality = false; this.form.TLS = false;
+          }
+
+          // 根据开关状态控制折叠面板展开或收起
+          if (key === 'Reality') {
+            this.activeReal = this.form.Reality ? 'real' : '';
+          }
+          if (key === 'TLS' || key === 'XTLS') {
+            this.activeTls = (this.form.TLS || this.form.XTLS) ? 'tls' : '';
+          }
+        },
+        submit() {
+          if (this.form.TLSVM || this.form.TLS) this.form.Security = 'tls';
+          if (this.form.XTLS) this.form.Security = 'xtls';
+          if (this.form.Reality) this.form.Security = 'reality';
+          const url = this.isEdit ? `/proxy/updateConfig/${this.nodePort}` : '/proxy/addConfig';
+          axios.post(url, this.form)
+            .then(r => {
+              if (r.data.success) {
+                this.$message({
+                  message: this.isEdit ? '修改成功!' : '添加成功!',
+                  type: 'success', duration: 1500,
+                  onClose: () => { parent.vue.iframeUrl = 'config.html'; }
+                });
+              } else {
+                this.$message.error((this.isEdit ? '修改' : '添加') + '失败');
+              }
+            })
+            .catch(() => this.$message.error((this.isEdit ? '修改' : '新增') + '失败'));
+        },
+        cancel() {
+          parent.vue.iframeUrl = 'config.html';
+        }
+      }
+    });
+  </script>
+</body>
+</html>

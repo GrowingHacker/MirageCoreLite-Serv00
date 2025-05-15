@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>用户设置 · MirageCore</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- 公共样式 -->
+  <link rel="stylesheet" href="css/common.css">
+  <!-- Vue 2 & Element UI -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-ui@2.15.14/lib/index.js"></script>
+  <style>
+    html, body {
+      margin: 0; padding: 0;
+      height: 100%; font-family: 'Urbanist', sans-serif;
+      overflow: hidden;
+      background: var(--bg-css);
+      transition: background 1s ease;
+    }
+    #app {
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #333;
+    }
+    .content-card {
+      width: 500px;
+      background: rgba(255,255,255,0.95);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      border-radius: 12px;
+      padding: 24px;
+      position: relative;
+    }
+    .settings-header {
+      font-size: 1.75rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+      text-align: center;
+      color: #333;
+      text-shadow: none;
+    }
+    /* 强制所有表单标签和输入框文字为深色 */
+    .el-form-item__label,
+    .el-input__inner,
+    .el-dialog__title {
+      color: #333 !important;
+    }
+    /* primary 按钮固定深蓝色 */
+    .el-button--primary {
+      background-color: #409EFF;
+      border-color: #409EFF;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="content-card">
+      <div class="settings-header">修改账号设置</div>
+
+      <!-- 1. 强制验证旧密码对话框 -->
+      <el-dialog
+        title="验证旧密码"
+        :visible.sync="verifyDialogVisible"
+        :close-on-click-modal="false"
+        :close-on-press-escape="false"
+        :show-close="false"
+        width="400px">
+        <el-form :model="verifyForm" :rules="verifyRules" ref="verifyForm" label-width="120px">
+          <el-form-item label="旧 密 码" prop="OldPassword">
+            <el-input v-model="verifyForm.OldPassword" type="password" autocomplete="off"></el-input>
+          </el-form-item>
+        </el-form>
+        <span slot="footer" class="dialog-footer">
+          <el-button type="primary" @click="onVerify" :loading="loadingVerify">验证</el-button>
+        </span>
+      </el-dialog>
+
+      <!-- 2. 新用户名/新密码表单，仅在验证成功后显示 -->
+      <el-form
+        v-if="verified"
+        :model="form"
+        :rules="rules"
+        ref="form"
+        label-width="100px">
+        <el-form-item label="新用户名" prop="Username">
+          <el-input v-model="form.Username" autocomplete="off"></el-input>
+        </el-form-item>
+        <el-form-item label="新密 码" prop="NewPassword">
+          <el-input v-model="form.NewPassword" type="password" autocomplete="off"></el-input>
+        </el-form-item>
+        <el-form-item label="确认密码" prop="ConfirmPassword">
+          <el-input v-model="form.ConfirmPassword" type="password" autocomplete="off"></el-input>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="onSubmit" :loading="loadingSubmit">提交修改</el-button>
+          <el-button @click="onReset" style="margin-left: 8px;">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
+  </div>
+
+  <script>
+    new Vue({
+      el: '#app',
+      data() {
+        return {
+          gradients: [
+            { from:5,to:6,  css:'linear-gradient(145deg,#FFEFBA 0%,#FFFFFF 100%)', text:'#333', active:'#FF8C00' },
+            { from:6,to:9,  css:'linear-gradient(135deg,#11998e 0%,#38ef7d 100%)', text:'#fff', active:'#FFD04B' },
+            { from:9,to:12, css:'linear-gradient(145deg,#4facfe 0%,#00f2fe 100%)', text:'#fff', active:'#FFD04B' },
+            { from:12,to:17,css:'linear-gradient(145deg,#f6d365 0%,#fda085 100%)', text:'#333', active:'#E85D04' },
+            { from:17,to:20,css:'linear-gradient(135deg,#6a11cb 0%,#ff8e53 100%)', text:'#fff', active:'#FFD04B' },
+            { from:20,to:24,css:'linear-gradient(145deg,#0f2027 0%,#203a43 100%)', text:'#fff', active:'#FFD04B' },
+            { from:0,to:5,   css:'linear-gradient(145deg,#0f2027 0%,#203a43 100%)', text:'#fff', active:'#FFD04B' }
+          ],
+          // 强制验证旧密码对话框状态
+          verifyDialogVisible: true,
+          verifyForm: { OldPassword: '' },
+          verifyRules: {
+            OldPassword: [{ required: true, message: '请输入旧密码', trigger: 'blur' }]
+          },
+          loadingVerify: false,
+
+          // 主表单
+          verified: false,
+          token: '',
+          form: { Username: '', NewPassword: '', ConfirmPassword: '' },
+          rules: {
+            Username: [{ required: true, message: '请输入新用户名', trigger: 'blur' }],
+            NewPassword: [
+              { required: true, message: '请输入新密码', trigger: 'blur' },
+              { min: 6, message: '密码长度至少 6 位', trigger: 'blur' }
+            ],
+            ConfirmPassword: [
+              { required: true, message: '请确认新密码', trigger: 'blur' },
+              { validator: (rule, value, callback) => {
+                  if (value !== this.form.NewPassword) {
+                    callback(new Error('两次输入密码不一致'));
+                  } else {
+                    callback();
+                  }
+                }, trigger: 'blur' }
+            ]
+          },
+          loadingSubmit: false
+        };
+      },
+      computed: {
+        currentStyle() {
+          const h = new Date().getHours();
+          return this.gradients.find(g => h >= g.from && h < g.to) || this.gradients[0];
+        }
+      },
+      watch: {
+        currentStyle: {
+          handler(s) {
+            document.documentElement.style.setProperty('--bg-css', s.css);
+          },
+          immediate: true
+        }
+      },
+      methods: {
+        // 验证旧密码（不可取消）
+        onVerify() {
+          this.$refs.verifyForm.validate(valid => {
+            if (!valid) return;
+            this.loadingVerify = true;
+            axios.post('/user/getToken', { password: this.verifyForm.OldPassword })
+              .then(res => {
+                this.token = res.data.token;
+                this.verified = true;
+                this.verifyDialogVisible = false;
+                this.$message.success('验证成功，请设置新用户名和密码');
+              })
+              .catch(err => {
+                this.$message.error(err.response?.data?.message || '旧密码验证失败');
+              })
+              .finally(() => {
+                this.loadingVerify = false;
+              });
+          });
+        },
+        // 提交新用户名和密码
+        onSubmit() {
+          this.$refs.form.validate(valid => {
+            if (!valid) return;
+            this.loadingSubmit = true;
+            axios.put('/user/update', {
+              username: this.form.Username,
+              password: this.form.NewPassword,
+              token: this.token
+            })
+            .then(res => {
+              if (res.data.success) {
+                this.$message.success('修改成功，请重新登录');
+                setTimeout(() => { parent.window.location.href = 'login.html'; }, 1500);
+              } else {
+                this.$message.error("修改失败：" + res.data.error);
+              }
+            })
+            .catch(err => {
+              this.$message.error(err.response?.data?.message || '修改失败');
+            })
+            .finally(() => {
+              this.loadingSubmit = false;
+            });
+          });
+        },
+        onReset() {
+          this.$refs.form.resetFields();
+        }
+      }
+    });
+  </script>
+</body>
+</html>

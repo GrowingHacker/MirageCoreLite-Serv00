@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>MirageCore · 幻元枢</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- 公共样式 -->
+  <link rel="stylesheet" href="css/common.css">
+  <!-- Vue 2 & Element UI -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/element-ui@2.15.14/lib/index.js"></script>
+  <style>
+    html, body {
+      margin: 0; padding: 0;
+      height: 100%; font-family: 'Urbanist', sans-serif;
+      background: #f2f3f5; overflow: hidden;
+    }
+    #app { height: 100%; }
+    .el-container { height: 100%; }
+
+    /* —— 侧边栏 —— */
+    .sidebar {
+      box-shadow: 2px 0 8px rgba(0,0,0,0.15);
+      display: flex; flex-direction: column; align-items: center;
+      padding-top: 30px;
+      transition: background 1s ease, color 0.3s ease;
+      --sidebar-text: #fff;
+      --sidebar-active: var(--sidebar-active);
+    }
+    .sidebar-header {
+      text-align: center; margin-bottom: 28px;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    .logo {
+      width: 90px; height: 90px; margin-bottom: 20px;
+      border-radius: 16px; padding: 10px;
+      transition: transform 0.3s ease;
+    }
+    .logo:hover { transform: scale(1.08); }
+    .brand-name {
+      font-size: 1.3rem; font-weight: bold;
+      line-height: 1.4; font-family: 'Noto Serif SC', serif;
+      transition: color 0.3s ease;
+    }
+    .sidebar-menu { width: 100%; border-right: none; }
+    .el-menu-item {
+      font-weight: 600; padding-left: 30px !important;
+      transition: all 0.2s ease;
+      color: var(--sidebar-text) !important;
+    }
+    .el-menu-item:hover { background-color: rgba(255,255,255,0.1) !important; }
+    .el-menu-item i { color: var(--sidebar-text); transition: color .2s ease; }
+    .el-menu-item.is-active {
+      background-color: rgba(255,255,255,0.15) !important;
+      border-left: 4px solid var(--sidebar-active);
+      font-weight: 700; color: var(--sidebar-active) !important;
+    }
+    .el-menu-item.is-active i { color: var(--sidebar-active); }
+
+    /* —— 主区域 & iframe 容器 —— */
+    .el-main {
+      padding: 0px; background: #f2f3f5;padding-left: 10px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .content-card {
+      width: 100%; height: 100%;
+      background: rgba(255,255,255,0.95);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+      border-radius: 12px;
+      overflow: hidden; display: flex;
+    }
+    .iframe-container {
+      flex: 1; border: none;
+      background: transparent;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .el-main { padding: 10px; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <el-container>
+    <el-aside
+      width="240px"
+      class="sidebar"
+      :style="{
+        background: currentStyle.css,
+        '--sidebar-text': currentStyle.text,
+        '--sidebar-active': currentStyle.active
+      }">
+      <div class="sidebar-header">
+        <img src="img/image.jpg" alt="MirageCore Logo" class="logo" :style="logoStyle">
+        <div class="brand-name" :style="brandStyle">MirageCore · 幻元樞</div>
+      </div>
+      <el-menu
+        :default-active="iframeUrl"
+        class="sidebar-menu"
+        background-color="transparent"
+        :text-color="currentStyle.text"
+        :active-text-color="currentStyle.active"
+        @select="handleSelect">
+        <el-menu-item index="status.html">
+          <i class="el-icon-menu"></i><span slot="title">首页</span>
+        </el-menu-item>
+        <el-menu-item index="config.html">
+          <i class="el-icon-document"></i><span slot="title">代理配置</span>
+        </el-menu-item>
+        <el-menu-item index="user-settings.html">
+          <i class="el-icon-setting"></i><span slot="title">用户设置</span>
+        </el-menu-item>
+      </el-menu>
+    </el-aside>
+
+    <el-main>
+      <div class="content-card">
+        <iframe
+          class="iframe-container"
+          :src="iframeUrl">
+        </iframe>
+      </div>
+    </el-main>
+  </el-container>
+</div>
+
+<script>
+var vue = new Vue({
+  el: '#app',
+  data() {
+    return {
+      iframeUrl: 'status.html',
+      gradients: [
+        { from:5,to:6,  css:'linear-gradient(145deg,#FFEFBA 0%,#FFFFFF 100%)', text:'#333', active:'#FF8C00', logoBg:'#fff' },
+        { from:6, to:9,  css:'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)', text:'#fff', active:'#FFD04B'},
+        { from:9,to:12, css:'linear-gradient(145deg,#4facfe 0%,#00f2fe 100%)', text:'#fff', active:'#FFD04B', logoBg:'#263238' },
+        { from:12,to:17,css:'linear-gradient(145deg,#f6d365 0%,#fda085 100%)', text:'#333', active:'#E85D04', logoBg:'#fff7e6' },
+        { from:17,to:20,css:'linear-gradient(135deg,#6a11cb 0%,#ff8e53 100%)', text:'#fff', active:'#FFD04B', logoBg:'#2e294e' },
+        { from:20,to:24,css:'linear-gradient(145deg,#0f2027 0%,#203a43 100%)', text:'#fff', active:'#FFD04B', logoBg:'#1e1e2f' },
+        { from:0,to:5,   css:'linear-gradient(145deg,#0f2027 0%,#203a43 100%)', text:'#fff', active:'#FFD04B', logoBg:'#1e1e2f' }
+      ]
+    };
+  },
+  computed: {
+    currentStyle() {
+      const h = new Date().getHours();
+      return this.gradients.find(g=>h>=g.from&&h<g.to)||this.gradients[0];
+    },
+    logoStyle() {
+      return {
+        background: this.currentStyle.logoBg,
+        boxShadow: `0 0 12px ${this.currentStyle.active}`,
+        borderRadius: '16px', padding: '8px',
+        width: '90px', height: '90px'
+      };
+    },
+    brandStyle() {
+      return {
+        color: this.currentStyle.text,
+        textShadow: `0 1px 4px ${this.currentStyle.active}66`
+      };
+    }
+  },
+  methods: {
+    handleSelect(url) {
+      this.iframeUrl = url;
+    }
+  }
+});
+</script>
+</body>
+</html>
